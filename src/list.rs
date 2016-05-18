@@ -1,8 +1,9 @@
 use giftr::refs::*;
-use giftr::refs::functional::Ref as Ref;
-//use giftr::refs::imperative::Ref as Ref;
+pub use giftr::refs::functional::Ref as Ref;
+//pub use giftr::refs::imperative::Ref as Ref;
 use std::mem::replace;
 use std::iter::Iterator;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct Node<T: Clone> {
@@ -15,12 +16,51 @@ impl <T: Clone> Node<T> {
         Node { next: None, elt: Some(x) }
     }
 
+//    fn at_last_node_mut<F>(&mut self, f: F)
+//        where F: Fn(&mut Node<T>)
+//    {
+////        let mut cur = self;
+////        loop {
+////            if cur.next.is_none() {
+////                f(cur);
+////                //break;
+////            } else {
+////                let &mut Node {next: ref mut nxt, elt: _} = {cur};
+////                if let &mut Some(ref mut r) = {nxt} {
+////                    cur = {r};
+////                }
+////            }
+//        //        }
+//        let mut nxt : Option<&mut Node<T>>;
+//        match {self.next} {
+//            None => nxt = None,
+//            Some(ref mut r) => nxt = Some(&mut **r)
+//        }
+//
+//
+//        loop {
+//            match {nxt} {
+//                None => break,
+//                Some(ref mut r) => {
+//                    nxt = Some(&mut *r)
+//                }
+//            }
+//        }
+//
+//        match self.next {
+//            None => f(self),
+//            Some(ref mut last) => f(&mut **last)
+//        }
+//    }
+
     fn len(&self) -> i32 {
-        if let Some(ref node) = self.next {
-            1 + node.len()
-        } else {
-            1
-        }
+        let mut n = 1;
+        let mut cur : &Node<T> = &self;
+        while let Some(ref nxt) = cur.next {
+            n += 1;
+            cur = nxt;
+        };
+        n
     }
 
     fn append(&mut self, x: T) {
@@ -43,7 +83,7 @@ impl <T: Clone> Node<T> {
             println!("have next");
 
             if next.is_last() {
-                ret = _move_opt(&mut next.elt);
+                ret = next.elt.take();
                 took_here = true;
             } else {
                 ret = next.pop_back();
@@ -55,6 +95,19 @@ impl <T: Clone> Node<T> {
         ret
     }
 }
+
+impl <T: Clone> Drop for Node<T> {
+    fn drop(&mut self) {
+        let mut optcur : Option<_> = self.next.take();
+        while let Some(cur) = optcur {
+            match Rc::try_unwrap(cur._ptr) {
+                Ok(ref mut cur) => optcur = cur.next.take(), //nxt,
+                Err(_)          => break
+            }
+        }
+    }
+}
+
 
 #[derive(Clone, Debug)]
 pub struct List<T: Clone> {
@@ -75,16 +128,18 @@ impl <T: Clone> List<T> {
     pub fn append(&mut self, x:T) {
         if let Some(ref mut node) = self.first {
             node.append(x)
+        } else {
+            self.first = Some(Ref::new(Node::new(x)))
         }
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
         let mut ret = None;
-        let optfirst = _move_opt(&mut self.first);
+        let optfirst = self.first.take();
         if let Some(first) = optfirst {
-            let Node { elt, next } = first.into_inner();
-            self.first = next;
-            ret = elt;
+            let mut n = first.into_inner();
+            self.first = n.next.take();
+            ret = n.elt.take();
         }
         ret
     }
@@ -96,7 +151,7 @@ impl <T: Clone> List<T> {
             if first.is_last() {
                 println!("first is last");
                 first_is_last = true;
-                ret = _move_opt(&mut first.elt);
+                ret = first.elt.take();
             } else {
                 println!("first is not last");
                 ret = first.pop_back();
@@ -106,18 +161,6 @@ impl <T: Clone> List<T> {
             self.first = None;
         }
         ret
-
-//        if let Some(ref mut first) = self.first {
-//            if first.is_last() {
-//                let mut first = _move_opt(first).expect("");
-//
-//                _move_opt(&mut first.elt)
-//            } else {
-//                first.pop_back()
-//            }
-//        } else {
-//            None
-//        }
     }
 
     pub fn len(&self) -> i32 {
@@ -133,14 +176,9 @@ impl <T: Clone> List<T> {
     }
 
     pub fn to_iter(mut self) -> Iter<T> {
-        Iter { cur: _move_opt(&mut self.first) }
+        Iter { cur: self.first.take() }
     }
 
-}
-
-pub fn to_iter<T: Clone>(s: Ref<List<T>>) -> Iter<T> {
-    let mut s = s;
-    Iter { cur: _move_opt(&mut s.first) }
 }
 
 pub struct Iter<T: Clone> {
@@ -162,89 +200,125 @@ impl <T: Clone> Iterator for Iter<T> {
     }
 }
 
-#[test]
-fn lst_len() {
-    println!("=== LST_LEN ==============");
-    let mut lst = Ref::new(List::new());
-    assert_eq!(0, lst.len());
+mod test {
+    use giftr::refs::*;
+    use super::{Ref, List};
+    #[test]
+    fn lst_len() {
+        println!("=== LST_LEN ==============");
+        let mut lst = Ref::new(List::new());
+        assert_eq!(0, lst.len());
 
-    lst.prepend(1);
-    assert_eq!(1, lst.len());
+        lst.prepend(1);
+        assert_eq!(1, lst.len());
 
-    lst.prepend(2);
-    assert_eq!(2, lst.len());
+        lst.prepend(2);
+        assert_eq!(2, lst.len());
 
-    lst.prepend(3);
-    assert_eq!(3, lst.len());
+        lst.prepend(3);
+        assert_eq!(3, lst.len());
 
-    lst.pop_front();
-    assert_eq!(2, lst.len());
-}
-
-#[test]
-fn lst_pop_front() {
-    println!("=== LST_LEN ==============");
-    let mut lst = Ref::new(List::new());
-    lst.prepend(3);
-    lst.prepend(2);
-    lst.prepend(1);
-
-    assert_eq!(Some(1), lst.pop_front());
-    assert_eq!(Some(2), lst.pop_front());
-    assert_eq!(Some(3), lst.pop_front());
-    assert_eq!(None, lst.pop_front());
-    assert_eq!(None, lst.pop_front());
-}
-
-#[test]
-fn lst_pop_back() {
-    println!("=== LST_LEN ==============");
-    let mut lst = Ref::new(List::new());
-    lst.prepend(3);
-    lst.prepend(2);
-    lst.prepend(1);
-
-    assert_eq!(Some(3), lst.pop_back());
-    assert_eq!(Some(2), lst.pop_back());
-    assert_eq!(Some(1), lst.pop_back());
-    assert_eq!(None, lst.pop_front());
-    assert_eq!(None, lst.pop_front());
-}
-
-#[test]
-fn lst_copy() {
-    println!("=== LST_COPY ==============");
-    let mut lst1 = Ref::new(List::new());
-    lst1.prepend(1);
-    let lst2 : Ref<List<i32>>;
-    lst1.prepend(2);
-
-    lst2 = lst1.clone();
-
-    lst1.prepend(3);
-
-    assert!(3 == lst1.len());
-    assert!(2 == lst2.len());
-}
-
-#[test]
-fn lst_iter() {
-    let mut lst1 = Ref::new(List::new());
-    lst1.prepend(3);
-    lst1.prepend(2);
-    lst1.prepend(1);
-
-    let mut cnt = 1;
-    for v in lst1.iter() {
-        println!("v={}, cnt={}", v, cnt);
-        assert_eq!(v, cnt);
-        cnt = cnt+1;
+        lst.pop_front();
+        assert_eq!(2, lst.len());
     }
 
-    let mut cnt = 1;
-    for v in to_iter(lst1) {
-        println!("v={}, cnt={}", v, cnt);
-        assert_eq!(v, cnt);
-        cnt = cnt+1;
+    #[test]
+    fn lst_pop_front() {
+        println!("=== LST_LEN ==============");
+        let mut lst = Ref::new(List::new());
+        lst.prepend(3);
+        lst.prepend(2);
+        lst.prepend(1);
+
+        assert_eq!(Some(1), lst.pop_front());
+        assert_eq!(Some(2), lst.pop_front());
+        assert_eq!(Some(3), lst.pop_front());
+        assert_eq!(None, lst.pop_front());
+        assert_eq!(None, lst.pop_front());
     }
+
+    #[test]
+    fn lst_pop_back() {
+        println!("=== LST_LEN ==============");
+        let mut lst = Ref::new(List::new());
+        lst.prepend(3);
+        lst.prepend(2);
+        lst.prepend(1);
+
+        assert_eq!(Some(3), lst.pop_back());
+        assert_eq!(Some(2), lst.pop_back());
+        assert_eq!(Some(1), lst.pop_back());
+        assert_eq!(None, lst.pop_front());
+        assert_eq!(None, lst.pop_front());
+    }
+
+    #[test]
+    fn lst_copy() {
+        println!("=== LST_COPY ==============");
+        let mut lst1 = Ref::new(List::new());
+        lst1.prepend(1);
+        let lst2 : Ref<List<i32>>;
+        lst1.prepend(2);
+
+        lst2 = lst1.clone();
+
+        lst1.prepend(3);
+
+        assert!(3 == lst1.len());
+        assert!(2 == lst2.len());
+    }
+
+    #[test]
+    fn lst_iter() {
+        let mut lst1 = Ref::new(List::new());
+        lst1.prepend(3);
+        lst1.prepend(2);
+        lst1.prepend(1);
+
+        let mut cnt = 1;
+        for v in lst1.iter() {
+            println!("v={}, cnt={}", v, cnt);
+            assert_eq!(v, cnt);
+            cnt = cnt+1;
+        }
+    }
+
 }
+
+#[cfg(test)]
+mod bench {
+    use test;
+    use test::Bencher;
+    use giftr::refs::*;
+    use super::{Ref, List};
+
+    #[bench]
+    fn lst_append(b: &mut Bencher) {
+        let mut lst1 : Ref<List<i32>> = Ref::new(List::new());
+        let size = 100;
+        for i in 0..size {
+            lst1.append(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.append(1));
+            }
+        );
+    }
+
+    #[bench]
+    fn lst_prepend(b: &mut Bencher) {
+        let mut lst1 : List<i32> = List::new();
+        let size = 100;
+        for i in 0..size {
+            lst1.append(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.prepend(1));
+            }
+        );
+    }
+
+}
+
