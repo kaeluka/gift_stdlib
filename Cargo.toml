@@ -3,5 +3,31 @@ name = "stdlib"
 version = "0.1.0"
 authors = ["Stephan Brandauer <stephan.brandauer@it.uu.se>"]
 
+[profile.dev]
+opt-level = 0
+debug = true
+rpath = false
+lto = false
+debug-assertions = true
+codegen-units = 1
+
+[profile.test]
+opt-level = 0
+debug = true
+rpath = false
+lto = false
+debug-assertions = true
+codegen-units = 1
+
+# The benchmarking profile, used for `cargo bench`.
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = false
+debug-assertions = false
+codegen-units = 1
+
+
 [dependencies]
 giftr     = { path = "../giftr/" }

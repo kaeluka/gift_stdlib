@@ -53,15 +53,15 @@ impl <T: Clone> Node<T> {
 //        }
 //    }
 
-    fn len(&self) -> i32 {
-        let mut n = 1;
-        let mut cur : &Node<T> = &self;
-        while let Some(ref nxt) = cur.next {
-            n += 1;
-            cur = nxt;
-        };
-        n
-    }
+//    fn len(&self) -> i32 {
+//        let mut n = 1;
+//        let mut cur : &Node<T> = &self;
+//        while let Some(ref nxt) = cur.next {
+//            n += 1;
+//            cur = nxt;
+//        };
+//        n
+//    }
 
     fn append(&mut self, x: T) {
         if let Some(ref mut next) = self.next {
@@ -111,21 +111,24 @@ impl <T: Clone> Drop for Node<T> {
 
 #[derive(Clone, Debug)]
 pub struct List<T: Clone> {
+    len : i32,
     first : Option<Ref<Node<T>>>,
 }
 
 impl <T: Clone> List<T> {
     pub fn new() -> List<T> {
-        List { first: None }
+        List { len: 0, first: None }
     }
 
     pub fn prepend(&mut self, x: T) {
+        self.len += 1;
         let new_next = replace(&mut self.first, None);
         let new_first = Node { elt: Some(x), next: new_next };
         self.first = Some(Ref::new(new_first));
     }
 
     pub fn append(&mut self, x:T) {
+        self.len += 1;
         if let Some(ref mut node) = self.first {
             node.append(x)
         } else {
@@ -134,6 +137,7 @@ impl <T: Clone> List<T> {
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
+        self.len -= 1;
         let mut ret = None;
         let optfirst = self.first.take();
         if let Some(first) = optfirst {
@@ -145,6 +149,7 @@ impl <T: Clone> List<T> {
     }
 
     pub fn pop_back(&mut self) -> Option<T> {
+        self.len -= 1;
         let mut ret = None;
         let mut first_is_last = false;
         if let Some(ref mut first) = self.first {
@@ -164,11 +169,7 @@ impl <T: Clone> List<T> {
     }
 
     pub fn len(&self) -> i32 {
-        if let Some(ref first) = self.first {
-            first.len()
-        } else {
-            0
-        }
+        self.len
     }
 
     pub fn iter(&self) -> Iter<T> {
@@ -295,7 +296,7 @@ mod bench {
     #[bench]
     fn lst_append(b: &mut Bencher) {
         let mut lst1 : Ref<List<i32>> = Ref::new(List::new());
-        let size = 100;
+        let size = 10000;
         for i in 0..size {
             lst1.append(i);
         }
@@ -309,7 +310,7 @@ mod bench {
     #[bench]
     fn lst_prepend(b: &mut Bencher) {
         let mut lst1 : List<i32> = List::new();
-        let size = 100;
+        let size = 10000;
         for i in 0..size {
             lst1.append(i);
         }
@@ -320,5 +321,18 @@ mod bench {
         );
     }
 
-}
+    #[bench]
+    fn lst_len(b: &mut Bencher) {
+        let mut lst1 : List<i32> = List::new();
+        let size = 10000;
+        for i in 0..size {
+            lst1.append(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.len());
+            }
+        );
+    }
 
+}
