@@ -1,6 +1,8 @@
 use giftr::refs::*;
 pub use giftr::refs::functional::Ref as Ref;
 //pub use giftr::refs::imperative::Ref as Ref;
+use std::default::Default;
+
 use std::mem::replace;
 use std::iter::Iterator;
 use std::rc::Rc;
@@ -13,55 +15,8 @@ pub struct Node<T: Clone> {
 
 impl <T: Clone> Node<T> {
     fn new(x: T) -> Node<T> {
-        Node { next: None, elt: Some(x) }
+        Node { next: Default::default(), elt: Some(x) }
     }
-
-//    fn at_last_node_mut<F>(&mut self, f: F)
-//        where F: Fn(&mut Node<T>)
-//    {
-////        let mut cur = self;
-////        loop {
-////            if cur.next.is_none() {
-////                f(cur);
-////                //break;
-////            } else {
-////                let &mut Node {next: ref mut nxt, elt: _} = {cur};
-////                if let &mut Some(ref mut r) = {nxt} {
-////                    cur = {r};
-////                }
-////            }
-//        //        }
-//        let mut nxt : Option<&mut Node<T>>;
-//        match {self.next} {
-//            None => nxt = None,
-//            Some(ref mut r) => nxt = Some(&mut **r)
-//        }
-//
-//
-//        loop {
-//            match {nxt} {
-//                None => break,
-//                Some(ref mut r) => {
-//                    nxt = Some(&mut *r)
-//                }
-//            }
-//        }
-//
-//        match self.next {
-//            None => f(self),
-//            Some(ref mut last) => f(&mut **last)
-//        }
-//    }
-
-//    fn len(&self) -> i32 {
-//        let mut n = 1;
-//        let mut cur : &Node<T> = &self;
-//        while let Some(ref nxt) = cur.next {
-//            n += 1;
-//            cur = nxt;
-//        };
-//        n
-//    }
 
     fn append(&mut self, x: T) {
         if let Some(ref mut next) = self.next {
@@ -336,3 +291,4 @@ mod bench {
     }
 
 }
+

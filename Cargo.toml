@@ -30,4 +30,5 @@ codegen-units = 1
 
 
 [dependencies]
-giftr     = { path = "../giftr/" }
+#giftr = { git = "https://github.com/kaeluka/giftr.git" }
+giftr = { path = "../giftr" }
