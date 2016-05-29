@@ -230,3 +230,52 @@ mod bench {
     }
 
 }
+
+#[cfg(test)]
+mod vecbench {
+    use test;
+    use test::Bencher;
+
+    #[bench]
+    fn lst_append(b: &mut Bencher) {
+        let mut lst1  = (Vec::new());
+        let size = 10000;
+        for i in 0..size {
+            lst1.push(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.push(1));
+            }
+        );
+    }
+
+    #[bench]
+    fn lst_prepend(b: &mut Bencher) {
+        let mut lst1 = Vec::new();
+        let size = 10000;
+        for i in 0..size {
+            lst1.insert(0, i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.push(1));
+            }
+        );
+    }
+
+    #[bench]
+    fn lst_len(b: &mut Bencher) {
+        let mut lst1 = Vec::new();
+        let size = 10000;
+        for i in 0..size {
+            lst1.push(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.len());
+            }
+        );
+    }
+
+}
