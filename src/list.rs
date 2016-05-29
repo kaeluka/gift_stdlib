@@ -241,6 +241,7 @@ mod test {
 
 }
 
+/*
 #[cfg(test)]
 mod bench {
     use test;
@@ -292,3 +293,4 @@ mod bench {
 
 }
 
+*/

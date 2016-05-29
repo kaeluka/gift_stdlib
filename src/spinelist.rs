@@ -3,10 +3,6 @@ use giftr::ispine::*;
 use std::default::Default;
 use std::fmt::Debug;
 
-//use std::mem::replace;
-use std::iter::Iterator;
-//use std::rc::Rc;
-
 #[derive(Clone, Debug)]
 pub struct SpineList<T: Clone> {
     len : usize,
@@ -23,7 +19,11 @@ impl <T: Clone+Debug> SpineList<T> {
         self.spine.add(x);
     }
 
-    pub fn append(&mut self, x:T) {
+    pub fn insert(&mut self, idx: usize, x: T) {
+        self.spine.at().skip(idx).next().unwrap().insert(x);
+    }
+
+    pub fn append(&mut self, x: T) {
         self.len += 1;
         if let Some(ref mut l) = self.spine.at().last() {
             l.insert(x);
@@ -60,7 +60,7 @@ impl <T: Clone+Debug> SpineList<T> {
         Iter { cur: self.spine.clone() }
     }
 
-    pub fn to_iter(mut self) -> Iter<T> {
+    pub fn to_iter(self) -> Iter<T> {
         let SpineList { len: _, spine: spine } = self;
         Iter { cur: spine }
     }
@@ -216,6 +216,20 @@ mod bench {
     }
 
     #[bench]
+    fn lst_insert_5000(b: &mut Bencher) {
+        let mut lst1 : SpineList<i32> = SpineList::new();
+        let size = 100000;
+        for i in 0..size {
+            lst1.append(i);
+        }
+        b.iter(
+            || {
+                test::black_box(lst1.insert(50000, 1));
+            }
+        );
+    }
+
+    #[bench]
     fn lst_len(b: &mut Bencher) {
         let mut lst1 : SpineList<i32> = SpineList::new();
         let size = 10000;
@@ -237,43 +251,57 @@ mod vecbench {
     use test::Bencher;
 
     #[bench]
-    fn lst_append(b: &mut Bencher) {
-        let mut lst1  = (Vec::new());
+    fn vec_append(b: &mut Bencher) {
+        let mut vec1  = Vec::new();
         let size = 10000;
         for i in 0..size {
-            lst1.push(i);
+            vec1.push(i);
         }
         b.iter(
             || {
-                test::black_box(lst1.push(1));
+                test::black_box(vec1.push(1));
             }
         );
     }
 
     #[bench]
-    fn lst_prepend(b: &mut Bencher) {
-        let mut lst1 = Vec::new();
+    fn vec_prepend(b: &mut Bencher) {
+        let mut vec1 = Vec::new();
         let size = 10000;
         for i in 0..size {
-            lst1.insert(0, i);
+            vec1.push(i);
         }
         b.iter(
             || {
-                test::black_box(lst1.push(1));
+                test::black_box(vec1.insert(0, 1));
             }
         );
     }
 
     #[bench]
-    fn lst_len(b: &mut Bencher) {
+    fn vec_insert_5000(b: &mut Bencher) {
         let mut lst1 = Vec::new();
-        let size = 10000;
+        let size = 100000;
         for i in 0..size {
             lst1.push(i);
         }
         b.iter(
             || {
-                test::black_box(lst1.len());
+                test::black_box(lst1.insert(50000, 1));
+            }
+        );
+    }
+
+    #[bench]
+    fn vec_len(b: &mut Bencher) {
+        let mut vec1 = Vec::new();
+        let size = 10000;
+        for i in 0..size {
+            vec1.push(i);
+        }
+        b.iter(
+            || {
+                test::black_box(vec1.len());
             }
         );
     }
