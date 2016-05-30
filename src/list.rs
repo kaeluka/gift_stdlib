@@ -96,7 +96,7 @@ impl <T: Clone> List<T> {
         let mut ret = None;
         let optfirst = self.first.take();
         if let Some(first) = optfirst {
-            let mut n = first.into_inner();
+            let mut n = first.consume();
             self.first = n.next.take();
             ret = n.elt.take();
         }
@@ -144,15 +144,12 @@ pub struct Iter<T: Clone> {
 impl <T: Clone> Iterator for Iter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut new_cur = None;
-        let mut ret = None;
-        if let Some(ref mut cur) = self.cur {
-            //FIXME get rid of clone!
-            ret = cur.elt.clone();
-            new_cur = replace(&mut cur.next, None);
+        if let Some(mut cur) = self.cur.take() {
+            self.cur = cur.next.take();
+            cur.elt.take()
+        } else {
+            None
         }
-        self.cur = new_cur;
-        ret
     }
 }
 
@@ -241,7 +238,7 @@ mod test {
 
 }
 
-/*
+
 #[cfg(test)]
 mod bench {
     use test;
@@ -293,4 +290,4 @@ mod bench {
 
 }
 
-*/
+

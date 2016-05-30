@@ -2,18 +2,17 @@ use giftr::refs::*;
 //use giftr::refs::functional::Ref as Ref;
 use giftr::refs::imperative::Ref as Ref;
 use std::iter::Iterator;
-use std::mem;
 
 use std::cmp::Ord;
 
 #[derive(Clone,Debug)]
 pub struct Heap<T: Ord+Clone> {
-    cell : HeapCell<T>,
+    cell : Ref<HeapCell<T>>,
 }
 
 impl <T: Ord+Clone> Heap<T> {
     pub fn new() -> Heap<T> {
-        Heap { cell: HeapCell::new() }
+        Heap { cell: Ref::new(HeapCell::new()) }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -21,17 +20,20 @@ impl <T: Ord+Clone> Heap<T> {
     }
 
     pub fn insert(&mut self, x: T) {
-        self.cell = self.cell.insert(x);
+        self.cell.apply(|cell| cell.insert(x))
     }
 
     pub fn pop_min(&mut self) -> Option<T> {
-        let tmp = mem::replace(&mut self.cell, HeapCell::Empty);
-        if let Some((ret, rest)) = tmp.pop_min() {
-            self.cell = rest;
-            Some(ret)
-        } else {
-            None
-        }
+        let mut ret = None;
+        self.cell.apply(|cell| {
+            if let Some((r, rest)) = cell.pop_min() {
+                ret = Some(r);
+                rest
+            } else {
+                HeapCell::Empty
+            }
+        });
+        ret
     }
 
     pub fn to_iter(self) -> Iter<T> {
@@ -73,7 +75,7 @@ impl <T: Ord+Clone> HeapCell<T> {
         }
     }
 
-    pub fn insert(&mut self, x: T) -> Self {
+    pub fn insert(self, x: T) -> Self {
         self.merge(HeapCell::Node { rank: 1, elt: x, left: Ref::new(HeapCell::new()), right: Ref::new(HeapCell::new()) })
     }
 
@@ -85,18 +87,22 @@ impl <T: Ord+Clone> HeapCell<T> {
         }
     }
 
-    pub fn merge(&self, other: Self) -> Self {
-        match (self.clone(), other.clone()) {
+    pub fn merge(self, other: Self) -> Self {
+        match (self, other) {
             (HeapCell::Empty, h) => h,
-            (h, HeapCell::Empty) => h,
+            (h,  HeapCell::Empty) => h,
             (HeapCell::Node{rank: n1, elt: x, left: a1, right: b1},
              HeapCell::Node{rank: n2, elt: y, left: a2, right: b2}) => {
-                if x <= y {
-                    let h2 = HeapCell::Node{rank: n2, elt: y, left: a2, right: b2};
-                    Self::make_node(x, a1, Ref::new(b1.merge(h2)))
+                if true {
+                    if x <= y {
+                        let h2 = HeapCell::Node{rank: n2, elt: y, left: a2, right: b2};
+                        Self::make_node(x, a1, Ref::new(b1.consume().merge(h2)))
+                    } else {
+                        let h1 = HeapCell::Node{rank: n1, elt: x, left: a1, right: b1};
+                        Self::make_node(y, a2, Ref::new(b2.consume().merge(h1)))
+                    }
                 } else {
-                    let h1 = HeapCell::Node{rank: n1, elt: x, left: a1, right: b1};
-                    Self::make_node(y, a2, Ref::new(b2.merge(h1)))
+                    panic!("bug")
                 }
             }
         }
@@ -113,7 +119,7 @@ impl <T: Ord+Clone> HeapCell<T> {
         match self {
             HeapCell::Empty => None,
             HeapCell::Node{elt: x, left: l, right: r, ..} => {
-                Some((x, l.merge(r.into_inner())))
+                Some((x, l.consume().merge(r.consume())))
             }
         }
     }
@@ -164,4 +170,31 @@ fn heap_iter() {
         assert_eq!(i, v);
         i += 1;
     }
+}
+
+#[cfg(test)]
+mod bench {
+    use test;
+    use test::Bencher;
+    use super::Heap;
+    use std::collections::VecDeque;
+
+    #[bench]
+    fn hp_insert(b: &mut Bencher) {
+        let mut vec1  = VecDeque::new();
+        let size = 100000;
+        for i in 0..size {
+            vec1.push_back(-i);
+        }
+
+        let mut hp = Heap::new();
+
+        b.iter(
+            || {
+                hp.insert(vec1.pop_front().unwrap());
+                hp.insert(vec1.pop_back().unwrap());
+            }
+        );
+    }
+
 }

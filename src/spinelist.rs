@@ -1,30 +1,29 @@
 pub use giftr::refs::functional::Ref as Ref;
 use giftr::ispine::*;
+use giftr::ispine::contiguous::Contiguous as Spine;
 use std::default::Default;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct SpineList<T: Clone> {
-    len : usize,
-    spine : ISpine<T>,
+    spine : Spine<T>,
 }
 
 impl <T: Clone+Debug> SpineList<T> {
     pub fn new() -> SpineList<T> {
-        SpineList { len: 0, spine: Default::default() }
+        SpineList { spine: Default::default() }
     }
 
     pub fn prepend(&mut self, x: T) {
-        self.len += 1;
         self.spine.add(x);
     }
 
     pub fn insert(&mut self, idx: usize, x: T) {
-        self.spine.at().skip(idx).next().unwrap().insert(x);
+        self.spine.at()
+            .skip(idx).next().unwrap().insert(x);
     }
 
     pub fn append(&mut self, x: T) {
-        self.len += 1;
         if let Some(ref mut l) = self.spine.at().last() {
             l.insert(x);
             return
@@ -33,9 +32,8 @@ impl <T: Clone+Debug> SpineList<T> {
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
-        if let Some(x) = self.spine.pop1() {
-            println!("popped {:?}, len was {}", x, self.len);
-            self.len -= 1;
+        if let Some(x) = self.spine.pop() {
+            println!("popped {:?}, len was {}", x, self.len());
             Some(x)
         } else {
             None
@@ -44,8 +42,7 @@ impl <T: Clone+Debug> SpineList<T> {
 
     pub fn pop_back(&mut self) -> Option<T> {
         let len = self.len();
-        if let Some(x) = self.spine.take_from(len-1).pop1() {
-            self.len -= 1;
+        if let Some(x) = self.spine.take_from(len-1).pop() {
             Some(x)
         } else {
             None
@@ -53,7 +50,7 @@ impl <T: Clone+Debug> SpineList<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.len
+        self.spine.iter().count()
     }
 
     pub fn iter(&self) -> Iter<T> {
@@ -61,20 +58,19 @@ impl <T: Clone+Debug> SpineList<T> {
     }
 
     pub fn to_iter(self) -> Iter<T> {
-        let SpineList { len: _, spine: spine } = self;
+        let SpineList { spine } = self;
         Iter { cur: spine }
     }
 }
 
-use std::marker::PhantomData;
 pub struct Iter<T: Clone> {
-    cur: ISpine<T>,
+    cur: Spine<T>,
 }
 
 impl <T: Clone> Iterator for Iter<T> {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.cur.pop1()
+        self.cur.pop()
     }
 }
 
